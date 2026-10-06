@@ -1,6 +1,8 @@
 name: Aishwaryam Cron
 
 on:
+  schedule:
+    - cron: '*/5 * * * *'
   workflow_dispatch:
 
 jobs:
@@ -22,50 +24,22 @@ jobs:
           const { chromium } = require('playwright');
 
           (async () => {
-            const browser = await chromium.launch({
-              headless: true
-            });
-
+            const browser = await chromium.launch({ headless: true });
             const page = await browser.newPage();
 
-            page.on('request', request => {
-              console.log('REQUEST:', request.method(), request.url());
+            const response = await page.goto(process.env.CRON_URL, {
+              waitUntil: 'commit',
+              timeout: 60000
             });
 
-            page.on('response', response => {
-              console.log('RESPONSE:', response.status(), response.url());
-            });
+            console.log('HTTP status:', response ? response.status() : 'unknown');
 
-            page.on('requestfailed', request => {
-              console.log('REQUEST FAILED:', request.url(), request.failure()?.errorText);
-            });
+            await page.waitForTimeout(5000);
 
-            console.log('Opening cron URL...');
-
-            try {
-              const response = await page.goto(process.env.CRON_URL, {
-                waitUntil: 'commit',
-                timeout: 60000
-              });
-
-              console.log('Initial HTTP status:', response ? response.status() : 'unknown');
-            } catch (err) {
-              console.log('Initial navigation error:', err.message);
-            }
-
-            console.log('URL after initial navigation:', page.url());
-
-            await page.waitForTimeout(15000);
-
-            console.log('URL after waiting:', page.url());
-            console.log('Title:', await page.title());
+            console.log('Cron URL:', page.url());
 
             const body = await page.locator('body').innerText().catch(() => '');
-            console.log('PAGE TEXT:');
-            console.log(body.substring(0, 3000));
-
-            const cookies = await page.context().cookies();
-            console.log('COOKIES:', cookies.map(c => c.name));
+            console.log(body);
 
             await browser.close();
           })().catch(err => {

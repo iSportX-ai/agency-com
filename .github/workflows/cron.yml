@@ -28,19 +28,44 @@ jobs:
 
             const page = await browser.newPage();
 
-            console.log('Opening cron URL...');
-
-            const response = await page.goto(process.env.CRON_URL, {
-              waitUntil: 'networkidle',
-              timeout: 120000
+            page.on('request', request => {
+              console.log('REQUEST:', request.method(), request.url());
             });
 
-            console.log('HTTP status:', response ? response.status() : 'unknown');
-            console.log('Final URL:', page.url());
+            page.on('response', response => {
+              console.log('RESPONSE:', response.status(), response.url());
+            });
 
-            await page.waitForTimeout(5000);
+            page.on('requestfailed', request => {
+              console.log('REQUEST FAILED:', request.url(), request.failure()?.errorText);
+            });
 
-            console.log('Cron browser execution completed.');
+            console.log('Opening cron URL...');
+
+            try {
+              const response = await page.goto(process.env.CRON_URL, {
+                waitUntil: 'commit',
+                timeout: 60000
+              });
+
+              console.log('Initial HTTP status:', response ? response.status() : 'unknown');
+            } catch (err) {
+              console.log('Initial navigation error:', err.message);
+            }
+
+            console.log('URL after initial navigation:', page.url());
+
+            await page.waitForTimeout(15000);
+
+            console.log('URL after waiting:', page.url());
+            console.log('Title:', await page.title());
+
+            const body = await page.locator('body').innerText().catch(() => '');
+            console.log('PAGE TEXT:');
+            console.log(body.substring(0, 3000));
+
+            const cookies = await page.context().cookies();
+            console.log('COOKIES:', cookies.map(c => c.name));
 
             await browser.close();
           })().catch(err => {
